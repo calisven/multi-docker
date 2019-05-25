@@ -1,0 +1,63 @@
+# docker-compose up
+version: '3'
+# each service will be named and referred to as 
+# viewed below
+services:
+  postgres:
+    image: 'postgres:latest'
+  redis:
+    image: 'redis:latest'
+  nginx:
+    # This should be up no matter what, or the whole app doesn't work
+    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      # The relative path that Docker should look for a Dockerfile
+      context: ./nginx
+    ports:
+      # 3050 is exposed to the world, and mapped to 80 inside the container
+      - '3050:80'
+  # Remember, these service names are used in 'default.conf' as well
+  # for networking
+  api:
+    # Name of Dockerfile to use
+    build:
+      dockerfile: Dockerfile.dev
+      # Where the root level of this service's code
+      # and the Dockerfile itself lives
+      context: ./server
+    volumes:
+      # Do not try to redirect node_modules - use the one in the container
+      - /app/node_modules
+      # Mount the source code on the host machine to /app
+      - ./server:/app
+    # Environment variables are only set and used AT RUN TIME
+    # in the container, not the image. When set in a docker-compose.yml file
+    environment:
+      # Just use the service name here, easy!
+      # To find out these values, look in the Docker documentation for postgres
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
+  client:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./client
+    volumes:
+      - /app/node_modules
+      - ./client:/app
+  worker:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./worker
+    volumes:
+      - /app/node_modules
+      - ./worker:/app
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+  
